@@ -1,0 +1,149 @@
+import pygame, math, random
+
+pygame.init()
+clock = pygame.time.Clock()
+width = 800
+height = 800
+iRange = 20
+white = (255,255,255)
+black = (0, 0, 0)
+red = (255, 0, 0)
+blue = (0, 0, 255)
+yellow = (255, 204, 0)
+purple = (255, 0, 200)
+win = pygame.display.set_mode((width, height))
+done = False
+pulseCounter = 0
+mortalityRate = 10
+coronaTime = 100
+spreadTime = coronaTime / 2
+killTime = coronaTime - 1
+deadCount = 0
+infectedCount = 0
+unaffectedCount = 0
+totalCount = 200
+class Person:
+    def __init__(self):
+        global infectedCount
+        self.radius = 5
+        self.x = random.randint(0, width)
+        self.y = random.randint(0, height)
+        self.color = black
+        self.xV = random.randint(-5, 5)
+        self.yV = random.randint(-5, 5)
+        self.infected = False
+        self.infectedTime = 0
+        self.immune = False
+
+        self.terminal = False
+        self.timeToLive = random.randint(0, killTime)
+
+        if random.randint(1, 20) == 1:
+            self.infected = True
+            self.color = red
+
+            infectedCount += 1
+
+    def move(self):
+        self.x += self.xV
+        self.y += self.yV
+        if self.x <= 0 or self.x >= width:
+            self.xV *= -1
+            self.x += self.xV
+        if self.y <= 0 or self.y >= height:
+            self.yV *= -1
+            self.y += self.yV
+
+    def draw(self):
+        pygame.draw.circle(win, self.color, (self.x, self.y), self.radius)
+
+    def infect(self):
+        global deadCount, infectedCount
+        self.infectedTime += 1
+
+        for person in healthyPeople:
+            d = distance(self, person)
+            if not self.immune and d <= iRange: #or self.infected == True and d <= self.radius * 2:
+                person.infected = True
+                person.color = yellow
+                healthyPeople.remove(person)
+                infectedPeople.append(person)
+                if not person.immune:
+                    person.color = red
+                    infectedCount += 1
+                    if random.randint(1, 100) <= mortalityRate:
+                        person.terminal = True
+
+        if self.terminal:
+            if self.infectedTime >= self.timeToLive:
+                infectedPeople.remove(self)
+                people.remove(self)
+                deadCount += 1
+                print("A person has died")
+
+
+        elif self.immune:
+            if self.infectedTime >= spreadTime:
+                self.infected = False
+                self.color = purple
+                self.infectedTime = 0
+                healthyPeople.append(self)
+                infectedPeople.remove(self)
+
+        elif self.infectedTime >= coronaTime:
+            self.infected = False
+            self.immune = True
+            self.color = purple
+            self.infectedTime = 0
+
+            healthyPeople.append(self)
+            infectedPeople.remove(self)
+
+
+
+    def pulse(self, counter):
+        pygame.draw.circle(win, self.color, (self.x, self.y), self.radius + counter, 3)
+
+
+def distance(s, o):
+    d = math.sqrt(((s.x - o.x) ** 2) + ((s.y - o.y) ** 2))
+    return d
+
+people = []
+healthyPeople = []
+infectedPeople = []
+carryingPeople = []
+for i in range(totalCount):
+    people.append(Person())
+for person in people:
+    if person.infected:
+        infectedPeople.append(person)
+    else:
+        healthyPeople.append(person)
+
+while not done:
+    clock.tick(30)
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            done = True
+    win.fill(white)
+
+    for p in people:
+
+        p.move()
+        p.draw()
+    if pulseCounter >= 0:
+        for p in infectedPeople:
+            p.pulse(pulseCounter)
+    if pulseCounter >= iRange:
+        pulseCounter = 0
+    for p in infectedPeople:
+        p.infect()
+
+    pulseCounter += 1
+    pygame.display.flip()
+
+unaffectedCount = totalCount - infectedCount
+print("Total people  : " + str(totalCount))
+print("Total infected: " + str(infectedCount))
+print("Total dead    : " + str(deadCount))
